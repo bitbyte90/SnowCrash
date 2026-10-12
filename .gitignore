@@ -1,0 +1,19 @@
+# Godot 4+ generated files
+.godot/
+
+# Imported assets and editor cache
+.import/
+
+# Exported builds
+/build/
+/dist/
+export.cfg
+export_presets.cfg
+
+# IDE / editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
