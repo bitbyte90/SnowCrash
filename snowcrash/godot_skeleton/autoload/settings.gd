@@ -43,6 +43,10 @@ const DEFAULTS := {
 		"texture_budget_mb": 1536,
 		"canvas_resolution": 1024,
 	},
+	"search": {
+		"everything_whole_pc": false,    # false = Everything results are cut down to your chosen folders
+		"everything_instance": "",       # "" (default) or "1.5a"
+	},
 	"demo": {
 		"locations": [],                 # Array of {"label": String, "path": String, "kind": String}
 	},

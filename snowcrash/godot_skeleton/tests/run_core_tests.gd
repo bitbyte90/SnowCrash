@@ -15,6 +15,7 @@ func _init() -> void:
 	test_scanner_on_temp_tree()
 	test_round2_generator()
 	test_name_search()
+	test_everything_cli()
 	print("\n%s (%d failure(s))" % ["ALL PASSED" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)
 
@@ -174,3 +175,45 @@ func test_name_search() -> void:
 	check(ns.search([root], "n").size() == 1, "result cap is respected")
 	var kinds: Array = ns.search([root.path_join("Films")], "drive").map(func(x): return x["kind"])
 	check(kinds == ["video"], "results carry a kind for icons")
+
+
+func test_everything_cli() -> void:
+	print("round 4: Everything (es.exe) helpers: safe args, parsing, folder boundary")
+	# --- query hardening: a query can never become an es.exe switch ---
+	check(EverythingCli.sanitize_query("-export-txt") == "export-txt", "leading '-' stripped (no switch injection)")
+	check(EverythingCli.sanitize_query("  /instance 1.5a") == "instance 1.5a", "leading '/' and spaces stripped")
+	check(EverythingCli.sanitize_query("night \"drive\"") == "night drive", "double quotes removed")
+	check(EverythingCli.sanitize_query("ext:jpg !thumbs night-sky") == "ext:jpg !thumbs night-sky", "Everything syntax and inner '-' kept")
+	var a := EverythingCli.build_args("-bad", 50)
+	check(a == PackedStringArray(["-n", "50", "bad"]), "args: -n <count> then the query last")
+	check(EverythingCli.build_args("x", 50, "1.5a") == PackedStringArray(["-n", "50", "-instance", "1.5a", "x"]), "args: 1.5a instance")
+	check(EverythingCli.build_args("x", 999999)[1] == "2000", "fetch count is capped")
+	check(EverythingCli.fetch_count(200, true) == 1000 and EverythingCli.fetch_count(200, false) == 200, "scoped search over-fetches 5x, whole-PC does not")
+	# --- output parsing: errors are never results ---
+	var ok := EverythingCli.parse_output(["C:\\Pics\\a.jpg\r\nD:\\Films\\b.ogv\r\n"], 0)
+	check(ok["ok"] and ok["paths"] == ["C:/Pics/a.jpg", "D:/Films/b.ogv"], "CRLF output -> forward-slash paths")
+	var e1 := EverythingCli.parse_output(["Error 8: Everything IPC not found. Please make sure Everything is running.\n"], 0)
+	check(not e1["ok"] and e1["paths"].is_empty(), "'Error 8' text with exit 0 is an error, not a result")
+	var e2 := EverythingCli.parse_output(["boom"], 8)
+	check(not e2["ok"] and e2["error"] == "boom", "non-zero exit is an error and keeps the message")
+	check(not EverythingCli.parse_output([], 1)["ok"], "non-zero exit with no output is still an error")
+	var none := EverythingCli.parse_output([""], 0)
+	check(none["ok"] and none["paths"].is_empty(), "no matches -> ok and empty (no fallback needed)")
+	check(EverythingCli.parse_output(["C:\\Error 8 notes.txt"], 0)["ok"], "a real path containing the word Error is not an error")
+	# --- folder boundary (privacy) ---
+	var roots := ["C:\\Users\\bit\\Pics", "D:/Films/"]
+	check(EverythingCli.is_under_roots("C:/Users/bit/Pics/a.jpg", roots), "file inside a chosen folder is allowed")
+	check(EverythingCli.is_under_roots("c:\\users\\BIT\\pics", roots), "the chosen folder itself, any case/slashes, is allowed")
+	check(EverythingCli.is_under_roots("D:/Films/Sub/x.mkv", roots), "trailing slash on a root is fine")
+	check(not EverythingCli.is_under_roots("C:/Users/bit/PicsEvil/a.jpg", roots), "sibling with the same prefix is NOT allowed")
+	check(not EverythingCli.is_under_roots("C:/Windows/system32/x.dll", roots), "outside the chosen folders is NOT allowed")
+	check(not EverythingCli.is_under_roots("C:/anything", []), "no chosen folders -> nothing allowed")
+	check(not EverythingCli.is_under_roots("C:/anything", [""]), "blank root never matches")
+	check(EverythingCli.filter_to_roots(["D:/Films/a", "E:/Secret/b", "D:/Films"], roots) == ["D:/Films/a", "D:/Films"], "filter keeps only allowed paths, in order")
+	check(EverythingCli.is_under_roots("C:/x", ["C:/"]), "a whole-drive root allows the drive")
+	# --- finding es.exe ---
+	var c := EverythingCli.candidate_paths("C:\\Tools;;\"D:\\bin\"", ["C:\\Program Files", "", "C:\\Program Files (x86)"])
+	check(c[0] == "C:/Program Files/Everything/es.exe" and c[1] == "C:/Program Files/Everything 1.5a/es.exe", "Program Files checked first")
+	check(c.find("C:/Tools/es.exe") > c.find("C:/Program Files (x86)/Everything 1.5a/es.exe"), "PATH folders come after Program Files")
+	check(c.has("D:/bin/es.exe") and not c.has("/es.exe"), "quoted PATH entry handled, empty entries skipped")
+	check(EverythingCli.candidate_paths("", []).is_empty(), "nothing set -> no candidates, no crash")

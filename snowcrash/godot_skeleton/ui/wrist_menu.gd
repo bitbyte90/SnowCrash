@@ -100,7 +100,7 @@ func _build_search() -> void:
 	_query.text_submitted.connect(func(_t): _do_search())
 	row.add_child(_query)
 	row.add_child(_button("Search", _do_search))
-	_search_status = _label("Searches your chosen places (or the whole PC if Everything is installed).", 14)
+	_search_status = _label("Searches your chosen places only (uses Everything for speed if it's installed).", 14)
 	_search_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_search_status.custom_minimum_size = Vector2(700, 0)   # wrapped labels need a width or they grow very tall
 	v.add_child(_search_status)
