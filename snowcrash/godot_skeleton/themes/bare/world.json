@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "id": "snowcrash.bare",
+  "name": "Bare",
+  "version": "0.1.0",
+  "author": "Snow Crash project",
+  "licence": "CC0-1.0",
+  "min_app_version": "0.1.0",
+  "tier": 0,
+  "rating": "everyone",
+  "spawn": { "node": "Spawn", "facing_drive": "first" },
+  "drive_layout": { "type": "arc", "spacing_m": 12 },
+  "room_templates": {},
+  "unknown_file_style": "loot",
+  "audio": { "ambient": "", "volume_db": -20 }
+}
